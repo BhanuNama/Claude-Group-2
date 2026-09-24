@@ -23,18 +23,32 @@ export function useCases() {
   // Save case
   const saveCase = useCallback((caseData) => {
     setCases(prev => {
+      const caseId = caseData.threadId || Date.now().toString();
+      const newEntry = {
+        id: caseId,
+        threadId: caseId,
+        timestamp: new Date().toISOString(),
+        notes: caseData.notes || '',
+        notesPreview: (caseData.notes || '').slice(0, 80),
+        topDiagnosis: caseData.ranking?.[0]?.name || 'Diagnostic Analysis',
+        phenotypeCount: caseData.phenotypes?.length || 0,
+        phenotypes: caseData.phenotypes || [],
+        ranking: caseData.ranking || [],
+        opinions: caseData.opinions || [],
+        reviewInfo: caseData.reviewInfo || null,
+        nextSteps: caseData.nextSteps || null,
+      };
+
       const updated = [
-        {
-          id: caseData.threadId || Date.now().toString(),
-          timestamp: new Date().toISOString(),
-          notesPreview: (caseData.notes || '').slice(0, 80),
-          topDiagnosis: caseData.ranking?.[0]?.name || 'No results',
-          phenotypeCount: caseData.phenotypes?.length || 0,
-        },
-        ...prev.filter(c => c.id !== caseData.threadId),
+        newEntry,
+        ...prev.filter(c => c.id !== caseId && c.threadId !== caseId),
       ].slice(0, 20); // Keep last 20
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('LocalStorage save failed:', err);
+      }
       return updated;
     });
   }, []);

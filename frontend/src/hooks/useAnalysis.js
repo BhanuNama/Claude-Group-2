@@ -140,6 +140,22 @@ export function useAnalysis() {
     if (timerRef.current) clearInterval(timerRef.current);
   }, []);
 
+  const loadSavedSession = useCallback((session) => {
+    reset();
+    setStatus('complete');
+    setThreadId(session.id || session.threadId || null);
+    setPhenotypes(session.phenotypes || []);
+    setCandidates(session.candidates || session.ranking || []);
+    setRanking(session.ranking || []);
+    setNextSteps(session.nextSteps || session.next_steps || null);
+    setOpinions(session.opinions || []);
+    setReviewInfo(
+      session.reviewInfo ||
+      (session.objections ? { objections: session.objections, round: 1, needs_revision: false } : null)
+    );
+    setCompletedStages(['extract', 'retrieve', 'specialist', 'reviewer', 'cmo', 'plan_next']);
+  }, [reset]);
+
   return {
     status,
     currentStage,
@@ -154,6 +170,7 @@ export function useAnalysis() {
     threadId,
     elapsed,
     analyze,
+    loadSavedSession,
     cancel,
     reset,
   };

@@ -23,11 +23,13 @@ import { useCases } from './hooks/useCases';
 
 export default function App() {
   const [showApp, setShowApp] = useState(false);
+  const [inputNotes, setInputNotes] = useState('');
   const analysis = useAnalysis();
   const { cases, saveCase, clearCases } = useCases();
   const [activeTab, setActiveTab] = useState('overview');
 
   const handleSubmit = useCallback((notes) => {
+    setInputNotes(notes);
     analysis.analyze(notes, true);
   }, [analysis]);
 
@@ -36,15 +38,38 @@ export default function App() {
     if (analysis.status === 'complete' && analysis.ranking.length > 0) {
       saveCase({
         threadId: analysis.threadId,
-        notes: '',
+        notes: inputNotes,
         ranking: analysis.ranking,
         phenotypes: analysis.phenotypes,
+        opinions: analysis.opinions,
+        reviewInfo: analysis.reviewInfo,
+        nextSteps: analysis.nextSteps,
       });
     }
-  }, [analysis.status, analysis.ranking, analysis.threadId, analysis.phenotypes, saveCase]);
+  }, [
+    analysis.status,
+    analysis.ranking,
+    analysis.threadId,
+    analysis.phenotypes,
+    analysis.opinions,
+    analysis.reviewInfo,
+    analysis.nextSteps,
+    inputNotes,
+    saveCase,
+  ]);
+
+  const handleSelectCase = useCallback((selectedCase) => {
+    if (!selectedCase) return;
+    if (selectedCase.notes) {
+      setInputNotes(selectedCase.notes);
+    }
+    analysis.loadSavedSession(selectedCase);
+    setActiveTab('overview');
+  }, [analysis]);
 
   const handleNewCase = useCallback(() => {
     analysis.reset();
+    setInputNotes('');
     setActiveTab('overview');
   }, [analysis]);
 
@@ -66,7 +91,7 @@ export default function App() {
   return (
     <Layout
       cases={cases}
-      onSelectCase={() => {}}
+      onSelectCase={handleSelectCase}
       activeCaseId={analysis.threadId}
       onClearCases={clearCases}
       onNewCase={handleNewCase}
@@ -74,6 +99,8 @@ export default function App() {
     >
       {/* Case Input */}
       <CaseInput
+        notes={inputNotes}
+        onNotesChange={setInputNotes}
         onSubmit={handleSubmit}
         isRunning={analysis.status === 'running'}
         onCancel={analysis.cancel}
