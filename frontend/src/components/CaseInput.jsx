@@ -2,8 +2,13 @@ import { useState } from 'react';
 import { FileText, Sparkles, Play, X, CornerDownLeft } from 'lucide-react';
 import { EXAMPLE_CASE } from '../utils/constants';
 
-export default function CaseInput({ onSubmit, isRunning, onCancel }) {
-  const [notes, setNotes] = useState('');
+export default function CaseInput({ onSubmit, isRunning, onCancel, notes: externalNotes, onNotesChange }) {
+  const [internalNotes, setInternalNotes] = useState('');
+  const notes = externalNotes !== undefined ? externalNotes : internalNotes;
+  const setNotes = (val) => {
+    if (onNotesChange) onNotesChange(val);
+    else setInternalNotes(val);
+  };
 
   const handleSubmit = () => {
     if (notes.trim() && !isRunning) {
