@@ -66,7 +66,7 @@ def get_llm() -> Any:
     """Get or lazily create the LLM."""
     global _llm
     if _llm is None:
-        _llm = init_chat_model(LLM_MODEL, temperature=0)
+        _llm = init_chat_model(LLM_MODEL, temperature=0, max_tokens=2500)
     return _llm
 
 
@@ -77,7 +77,7 @@ def get_driver() -> Driver:
     return _driver
 
 
-def _safe_structured_call(llm: Any, schema: type, prompt: str, max_retries: int = 3) -> Any:
+def _safe_structured_call(llm: Any, schema: type, prompt: str, max_retries: int = 5) -> Any:
     """Invoke LLM with direct JSON output instructions and Pydantic validation."""
     import time
     import re
@@ -129,7 +129,7 @@ def _safe_structured_call(llm: Any, schema: type, prompt: str, max_retries: int 
         except Exception as e:
             err_str = str(e)
             if "429" in err_str or "Rate limit" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                wait_time = 4 * (attempt + 1)
+                wait_time = min(35, 6 * (attempt + 1))
                 logger.warning(f"Rate limit hit. Backing off for {wait_time}s (attempt {attempt + 1}/{max_retries})...")
                 time.sleep(wait_time)
                 continue
@@ -280,10 +280,10 @@ TOP CANDIDATE DISEASES:
 
 {objections_text}
 
-For EACH specialty listed above ({systems_list}), provide that specialist's assessment for the top candidates:
+For EACH specialty listed above ({systems_list}), provide that specialist's assessment for each candidate:
 1. stance: support, oppose, or neutral
 2. confidence: 0.0 to 1.0
-3. rationale: concise reasoning from that specialty's vantage point
+3. rationale: concise 1-sentence reasoning from that specialty's vantage point
 4. cited_hpo_codes: HPO codes from the disease annotation set supporting the stance
 """
 
@@ -314,9 +314,9 @@ def specialist_node(state: DiagnosticState) -> dict:
         )
     findings_text = "\n".join(findings_lines)
 
-    # Build candidates text
+    # Build candidates text (top 4 for fast high-accuracy analysis)
     candidates_lines = []
-    for i, c in enumerate(candidates[:6], 1):
+    for i, c in enumerate(candidates[:4], 1):
         genes = ", ".join(c.get("genes", [])) or "no known genes"
         matched = ", ".join(c.get("matched_hpo", []))
         candidates_lines.append(

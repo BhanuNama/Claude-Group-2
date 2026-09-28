@@ -23,7 +23,7 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
 LLM_MODEL = os.getenv("LLM_MODEL", "groq:llama-3.3-70b-versatile")
 
 # ── Orchestration constants ──────────────────────────────────────
-MAX_ROUNDS: int = 2                # Maximum specialist debate rounds
+MAX_ROUNDS: int = 1                # Maximum specialist debate rounds (1 for high-speed single pass)
 GRAPH_WEIGHT: float = 0.7          # Weight of graph score in final ranking
 PANEL_WEIGHT: float = 0.3          # Weight of specialist panel consensus
 MAJOR_PENALTY: float = 0.1         # Score deduction per major objection
