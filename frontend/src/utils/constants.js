@@ -1,4 +1,9 @@
-const API_BASE = 'http://localhost:8000';
+const rawApiBase = import.meta.env.VITE_API_BASE;
+const API_BASE = (rawApiBase && rawApiBase.trim()) 
+  ? rawApiBase.trim().replace(/\/+$/, '')
+  : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : 'http://localhost:8000';
 
 export const PIPELINE_STAGES = [
   { key: 'extract',    label: 'Extract',      iconName: 'FileText' },
