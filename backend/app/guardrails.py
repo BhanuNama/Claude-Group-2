@@ -185,8 +185,15 @@ def generate_next_steps(
                 ann_id_to_label.get(fid, fid) for fid in sorted(differentiating)
             ][:10]  # Limit to 10 suggestions
 
+    note = "Decision support only. Confirm with a clinical geneticist."
+    if len(ranking) == 0:
+        if len(phenotypes) == 0:
+            note = "No clinical phenotypes or symptoms detected in the notes. Please enter clinical observations, physical examination findings, or laboratory test results."
+        else:
+            note = "Phenotypes were extracted, but no rare genetic syndrome reached the candidate matching threshold in the knowledge graph. Try adding more specific clinical findings or family history."
+
     return {
         "examine_next": examine_next,
         "still_unexplained": still_unexplained,
-        "note": "Decision support only. Confirm with a clinical geneticist.",
+        "note": note,
     }

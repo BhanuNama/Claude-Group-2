@@ -141,10 +141,18 @@ def diagnose(request: DiagnoseRequest):
     ]
 
     next_steps_data = result.get("next_steps", {})
+    if not ranking:
+        if not phenotypes:
+            fallback_note = "No clinical phenotypes or symptoms detected in the notes. Please enter clinical observations, physical examination findings, or laboratory test results."
+        else:
+            fallback_note = "Phenotypes were extracted, but no rare genetic syndrome reached the candidate matching threshold in the knowledge graph. Try adding more specific clinical findings or family history."
+    else:
+        fallback_note = "Decision support only. Confirm with a clinical geneticist."
+
     next_steps = NextStepsOut(
         examine_next=next_steps_data.get("examine_next", []),
         still_unexplained=next_steps_data.get("still_unexplained", []),
-        note=next_steps_data.get("note", "Decision support only."),
+        note=next_steps_data.get("note") or fallback_note,
     )
 
     logger.info(f"Diagnosis complete for thread {thread_id}: {len(ranking)} results")

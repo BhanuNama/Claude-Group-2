@@ -5,6 +5,8 @@ import {
   Users,
   Network,
   AlertCircle,
+  AlertTriangle,
+  Info,
   FileText,
   Sparkles,
   ArrowRight
@@ -123,6 +125,51 @@ export default function App() {
               <div className="objection-text">
                 <strong>Analysis Error:</strong> {analysis.error}
               </div>
+            </div>
+          </div>
+        </div>
+      {/* Invalid / Non-Clinical input feedback when analysis completes without findings */}
+      {analysis.status === 'complete' && !hasResults && analysis.phenotypes.length === 0 && (
+        <div className="section-card animate-fade-in" style={{ marginTop: 'var(--space-lg)', borderLeft: '4px solid #f59e0b' }}>
+          <div className="section-body" style={{ textAlign: 'center', padding: 'var(--space-xl) var(--space-md)' }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'rgba(245, 158, 11, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto var(--space-md)',
+              color: '#f59e0b'
+            }}>
+              <AlertTriangle size={28} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-heading)', marginBottom: 'var(--space-xs)', color: 'var(--text-primary)' }}>
+              No Clinical Phenotypes Detected
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', maxWidth: '620px', margin: '0 auto var(--space-md)', lineHeight: 1.6, fontSize: '0.92rem' }}>
+              The submitted text did not contain recognizable clinical findings, physical signs, or symptoms indexed in the Human Phenotype Ontology database.
+            </p>
+            <div style={{
+              background: 'var(--bg-secondary, rgba(255,255,255,0.04))',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-md)',
+              maxWidth: '560px',
+              margin: '0 auto',
+              textAlign: 'left',
+              fontSize: '0.84rem'
+            }}>
+              <strong style={{ display: 'block', marginBottom: 'var(--space-xs)', color: 'var(--text-primary)' }}>
+                💡 Guidelines for valid clinical input:
+              </strong>
+              <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <li>Include specific symptoms (e.g. <em>developmental regression, ataxia, optic atrophy, joint stiffness</em>)</li>
+                <li>Mention onset age and progression (e.g. <em>onset at age 2, progressive</em>)</li>
+                <li>Include relevant laboratory results (e.g. <em>elevated urinary GAGs, high lactate</em>) or family history</li>
+                <li>Or select one of the <strong>Preset Clinical Cases</strong> above to test a full diagnostic workflow</li>
+              </ul>
             </div>
           </div>
         </div>
