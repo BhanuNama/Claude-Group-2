@@ -20,7 +20,7 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password")
 #   groq:llama-3.3-70b-versatile
 #   openai:gpt-4o
 #   anthropic:claude-sonnet-4-20250514
-LLM_MODEL = os.getenv("LLM_MODEL", "groq:llama-3.3-70b-versatile")
+LLM_MODEL = os.getenv("LLM_MODEL", "openai:openai/gpt-4o-mini")
 
 # ── Orchestration constants ──────────────────────────────────────
 MAX_ROUNDS: int = 1                # Maximum specialist debate rounds (1 for high-speed single pass)

@@ -255,12 +255,17 @@ async def health():
 
     # Check LLM
     try:
+        global _llm
+        if not _llm:
+            from app.nodes import get_llm
+            _llm = get_llm()
         if _llm:
             response.llm = "ok"
         else:
             response.llm = "not configured"
-    except Exception:
-        response.llm = "error"
+    except Exception as e:
+        logger.warning(f"Health check LLM error: {e}")
+        response.llm = f"error: {str(e)}"
 
     return response
 
