@@ -78,43 +78,48 @@ To solve this, this system enforces the following split:
 ```mermaid
 flowchart TD
     subgraph IntakeLayer ["Layer 1: Clinical Intake & Standardization"]
-        A[Raw Unstructured Clinical Notes / EHR Records] --> B[LLM Clinical Phenotype Parser]
-        B --> C[Lucene Full-Text Index on Neo4j]
-        C --> D[Standardized Phenotype Profile with HPO Codes & Negation]
+        A["Raw Unstructured Clinical Notes / EHR Records"] --> B["LLM Clinical Phenotype Parser"]
+        B --> C["Lucene Full-Text Index on Neo4j"]
+        C --> D["Standardized Phenotype Profile with HPO Codes & Negation"]
     end
 
     subgraph GraphRAGLayer ["Layer 2: Deterministic GraphRAG Engine"]
-        D --> E[Cypher Resnik IC Retrieval Engine]
-        F[(Neo4j Biomedical Knowledge Graph<br/>12,880 Diseases | 285k Annotations | 5.5k Genes)] <--> E
-        E --> G[Shortlisted Top Candidates + Causative Gene Networks]
+        D --> E["Cypher Resnik IC Retrieval Engine"]
+        F[("Neo4j Biomedical Knowledge Graph - 12,880 Diseases - 285k Annotations - 5.5k Genes")] <--> E
+        E --> G["Shortlisted Top Candidates & Causative Gene Networks"]
     end
 
     subgraph MultiAgentPanel ["Layer 3: Multidisciplinary Specialist Debate Panel"]
-        G --> H[Specialist Summoner: Selects Active Body Systems]
-        H --> I1[🧠 Neurologist Agent]
-        H --> I2[🧬 Geneticist Agent]
-        H --> I3[🧪 Metabolic Specialist Agent]
-        H --> I4[👁️ Sensory / Ophthalmology Agent]
-        H --> I5[🦴 Musculoskeletal Agent]
-        H --> I6[❤️ Cardiology Agent]
+        G --> H["Specialist Summoner: Selects Active Body Systems"]
+        H --> I1["Neurology Specialist Agent"]
+        H --> I2["Medical Genetics Specialist Agent"]
+        H --> I3["Metabolic Specialist Agent"]
+        H --> I4["Sensory / Ophthalmology Agent"]
+        H --> I5["Musculoskeletal Specialist Agent"]
+        H --> I6["Cardiology Specialist Agent"]
     end
 
     subgraph AdversarialLayer ["Layer 4: Deterministic Guardrails & Red-Team Audit"]
-        I1 & I2 & I3 & I4 & I5 & I6 --> J[Citation Guardrail Engine]
-        J --> K[Adversarial Reviewer Agent]
-        K -->|Needs Revision? round < MAX| H
+        I1 --> J["Citation Guardrail Engine"]
+        I2 --> J
+        I3 --> J
+        I4 --> J
+        I5 --> J
+        I6 --> J
+        J --> K["Adversarial Reviewer Agent"]
+        K -->|Needs Revision?| H
     end
 
     subgraph SynthesisLayer ["Layer 5: Decision Engine & Action Planning"]
-        K -->|Consensus Reached| L[Chief Medical Officer: Deterministic Scorer]
-        L --> M[Targeted Diagnostic Planner]
+        K -->|Consensus Reached| L["Chief Medical Officer: Deterministic Scorer"]
+        L --> M["Targeted Diagnostic Planner"]
     end
 
     subgraph PresentationLayer ["Layer 6: Frontend Clinical Dashboard"]
-        M --> N1[Ranked Differential Diagnoses Cards]
-        M --> N2[Interactive D3 Force Graph 2D/3D]
-        M --> N3[Specialist Consensus Heatmap]
-        M --> N4[Differentiating Test Checklist & Unexplained Findings]
+        M --> N1["Ranked Differential Diagnoses Cards"]
+        M --> N2["Interactive D3 Force Graph 2D/3D"]
+        M --> N3["Specialist Consensus Heatmap"]
+        M --> N4["Differentiating Test Checklist & Unexplained Findings"]
     end
 ```
 
