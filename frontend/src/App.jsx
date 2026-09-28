@@ -128,6 +128,8 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
       {/* Invalid / Non-Clinical input feedback when analysis completes without findings */}
       {analysis.status === 'complete' && !hasResults && analysis.phenotypes.length === 0 && (
         <div className="section-card animate-fade-in" style={{ marginTop: 'var(--space-lg)', borderLeft: '4px solid #f59e0b' }}>
