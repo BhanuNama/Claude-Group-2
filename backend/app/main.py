@@ -57,7 +57,12 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"Initializing LLM: {LLM_MODEL}")
     try:
-        _llm = init_chat_model(LLM_MODEL, temperature=0, max_tokens=2500)
+        import os
+        kwargs: dict[str, Any] = {"temperature": 0, "max_tokens": 2500}
+        base_url = os.getenv("OPENAI_API_BASE") or os.getenv("OPENAI_BASE_URL")
+        if base_url and LLM_MODEL.startswith("openai:"):
+            kwargs["base_url"] = base_url
+        _llm = init_chat_model(LLM_MODEL, **kwargs)
     except Exception as e:
         logger.warning(f"LLM init failed (will retry on first request): {e}")
         _llm = None
