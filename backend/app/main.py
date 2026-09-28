@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"Initializing LLM: {LLM_MODEL}")
     try:
-        _llm = init_chat_model(LLM_MODEL, temperature=0)
+        _llm = init_chat_model(LLM_MODEL, temperature=0, max_tokens=2500)
     except Exception as e:
         logger.warning(f"LLM init failed (will retry on first request): {e}")
         _llm = None
