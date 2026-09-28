@@ -23,6 +23,35 @@ from app.config import (
 from app.queries import EXCLUDE_QUERY, SCORE_QUERY
 
 
+def matches_disease(query: str, target_id: str, target_name: str = "") -> bool:
+    """
+    Robust identifier and name matching between LLM output / objection and graph disease.
+    Handles Orphanet/OMIM prefixes, case-insensitivity, whitespace, and name matching.
+    """
+    if not query:
+        return False
+    q = str(query).strip().lower()
+    tid = str(target_id).strip().lower()
+    tname = str(target_name).strip().lower() if target_name else ""
+
+    if q == tid or (tname and q == tname):
+        return True
+
+    # Strip prefixes like orpha:, omim:, orphanet:
+    q_core = q.replace("orpha:", "").replace("orphanet:", "").replace("omim:", "").strip()
+    tid_core = tid.replace("orpha:", "").replace("orphanet:", "").replace("omim:", "").strip()
+
+    if q_core and tid_core and q_core == tid_core:
+        return True
+
+    # Check substring name match if substantial length (>= 6 chars)
+    if tname and len(q) >= 6:
+        if q in tname or tname in q:
+            return True
+
+    return False
+
+
 def score_diseases(
     present_ids: list[str],
     absent_ids: list[str],
@@ -33,10 +62,11 @@ def score_diseases(
     Score every disease in the graph against the patient's symptoms.
 
     1. Run SCORE_QUERY to get raw IC-weighted scores and matched terms.
-    2. Run EXCLUDE_QUERY to find diseases annotated with absent findings.
-    3. Apply contradiction penalty: raw_score × 0.6^(number of contradictions).
-    4. Normalize so the best candidate equals 1.0.
-    5. Return the top k candidates.
+    2. Adjust scores with phenotypic coverage and specificity to break ties.
+    3. Run EXCLUDE_QUERY to find diseases annotated with absent findings.
+    4. Apply contradiction penalty: raw_score × 0.6^(number of contradictions).
+    5. Normalize so the best candidate equals 1.0.
+    6. Return the top k candidates.
 
     Returns a list of dicts with keys:
         id, name, score, graph_norm, matched_hpo, genes
@@ -52,14 +82,22 @@ def score_diseases(
         return []
 
     # Build a lookup: disease_id → raw record
+    total_present = max(len(present_ids), 1)
     disease_map: dict[str, dict] = {}
     for row in raw_results:
+        genes = [g for g in (row["genes"] or []) if g]
+        matched = row["matched"] or []
+        coverage_ratio = len(matched) / total_present
+        # Add subtle specificity bonus so diseases matching more patient terms or with confirmed genes rank higher
+        adjusted_score = row["score"] * (1.0 + 0.05 * coverage_ratio + (0.01 if genes else 0.0))
+
         disease_map[row["id"]] = {
             "id": row["id"],
             "name": row["name"],
             "raw_score": row["score"],
-            "matched_hpo": row["matched"],
-            "genes": row["genes"] or [],
+            "adjusted_score": adjusted_score,
+            "matched_hpo": matched,
+            "genes": genes,
             "contradictions": 0,
         }
 
@@ -77,10 +115,10 @@ def score_diseases(
     for entry in disease_map.values():
         c = entry["contradictions"]
         if c > 0:
-            entry["raw_score"] *= math.pow(CONTRADICTION_FACTOR, c)
+            entry["adjusted_score"] *= math.pow(CONTRADICTION_FACTOR, c)
 
     # Step 4 — normalize to [0, 1]
-    max_score = max(e["raw_score"] for e in disease_map.values()) if disease_map else 1.0
+    max_score = max(e["adjusted_score"] for e in disease_map.values()) if disease_map else 1.0
     if max_score <= 0:
         max_score = 1.0
 
@@ -89,18 +127,18 @@ def score_diseases(
         candidates.append({
             "id": entry["id"],
             "name": entry["name"],
-            "score": entry["raw_score"],
-            "graph_norm": round(entry["raw_score"] / max_score, 4),
+            "score": round(entry["adjusted_score"], 4),
+            "graph_norm": round(entry["adjusted_score"] / max_score, 4),
             "matched_hpo": entry["matched_hpo"],
             "genes": entry["genes"],
         })
 
-    # Step 5 — sort and keep top k
-    candidates.sort(key=lambda x: x["score"], reverse=True)
+    # Step 5 — sort and keep top k (secondary sort by number of matched HPO terms)
+    candidates.sort(key=lambda x: (x["score"], len(x.get("matched_hpo", [])), len(x.get("genes", []))), reverse=True)
     return candidates[:k]
 
 
-def compute_panel_consensus(opinions: list[dict], disease_id: str) -> float:
+def compute_panel_consensus(opinions: list[dict], disease_id: str, disease_name: str = "") -> float:
     """
     Average specialist opinion for a disease.
 
@@ -114,7 +152,8 @@ def compute_panel_consensus(opinions: list[dict], disease_id: str) -> float:
 
     for opinion in opinions:
         for assessment in opinion.get("assessments", []):
-            if assessment.get("disease_id") == disease_id:
+            a_did = assessment.get("disease_id", "")
+            if matches_disease(a_did, disease_id, disease_name):
                 sign = stance_sign.get(assessment.get("stance", "neutral"), 0.0)
                 conf = float(assessment.get("confidence", 0.5))
                 values.append(sign * conf)
@@ -166,14 +205,15 @@ def build_final_ranking(
 
     for candidate in candidates:
         did = candidate["id"]
+        dname = candidate.get("name", "")
 
         # Panel consensus
-        panel = compute_panel_consensus(opinions, did)
+        panel = compute_panel_consensus(opinions, did, dname)
 
         # Count major objections for this disease
         disease_objections = [
             obj for obj in objections
-            if obj.get("disease_id") == did
+            if matches_disease(obj.get("disease_id", ""), did, dname)
         ]
         major_count = sum(
             1 for obj in disease_objections
@@ -185,7 +225,7 @@ def build_final_ranking(
         for opinion in opinions:
             system = opinion.get("system", "unknown")
             for assessment in opinion.get("assessments", []):
-                if assessment.get("disease_id") == did:
+                if matches_disease(assessment.get("disease_id", ""), did, dname):
                     stance = assessment.get("stance", "neutral")
                     rationale = assessment.get("rationale", "")
                     if rationale:
@@ -205,7 +245,7 @@ def build_final_ranking(
 
         ranking.append({
             "id": did,
-            "name": candidate["name"],
+            "name": dname,
             "genes": candidate.get("genes", []),
             "final_score": final,
             "graph_norm": candidate["graph_norm"],

@@ -15,38 +15,51 @@ from typing import Any
 def validate_citations(
     opinions: list[dict],
     annotations: dict[str, list[dict]],
+    candidates: list[dict] | None = None,
 ) -> list[dict]:
     """
     Check every specialist assessment's cited HPO codes against the graph.
 
     For each assessment:
+      - Canonicalize disease_id against candidates/annotations.
       - Get the set of HPO codes the disease is annotated with.
-      - Keep only cited_hpo_codes that appear in that set or the patient's matched set.
-      - If a non-neutral stance has zero valid citations after filtering, remove it.
+      - Keep only cited_hpo_codes that appear in that set.
+      - Retain clinical assessment and rationale even if citations needed sanitization.
 
-    Returns the cleaned opinions list (same structure, invalid citations removed).
+    Returns the cleaned opinions list (same structure, valid citations retained).
     """
+    from app.scoring import matches_disease
+
     cleaned_opinions = []
+    candidates = candidates or []
 
     for opinion in opinions:
         cleaned_assessments = []
         for assessment in opinion.get("assessments", []):
-            disease_id = assessment.get("disease_id", "")
-            cited_codes = assessment.get("cited_hpo_codes", [])
+            raw_id = assessment.get("disease_id", "")
             stance = assessment.get("stance", "neutral")
+            cited_codes = assessment.get("cited_hpo_codes", [])
+
+            # Canonicalize disease_id
+            canonical_id = raw_id
+            if canonical_id not in annotations:
+                for c in candidates:
+                    if matches_disease(raw_id, c.get("id", ""), c.get("name", "")):
+                        canonical_id = c["id"]
+                        break
 
             # Build the valid set: all HPO codes linked to this disease
-            disease_annotations = annotations.get(disease_id, [])
+            disease_annotations = annotations.get(canonical_id, [])
             valid_codes = {ann.get("hpo_id", "") for ann in disease_annotations}
 
             # Filter citations
             valid_cited = [c for c in cited_codes if c in valid_codes]
 
-            # If non-neutral stance has no valid citations, remove it
-            if stance != "neutral" and len(valid_cited) == 0 and len(cited_codes) > 0:
-                continue  # Drop this assessment entirely
-
-            cleaned_assessment = {**assessment, "cited_hpo_codes": valid_cited}
+            cleaned_assessment = {
+                **assessment,
+                "disease_id": canonical_id,
+                "cited_hpo_codes": valid_cited,
+            }
             cleaned_assessments.append(cleaned_assessment)
 
         cleaned_opinion = {**opinion, "assessments": cleaned_assessments}

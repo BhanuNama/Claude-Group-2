@@ -286,10 +286,11 @@ TOP CANDIDATE DISEASES:
 {objections_text}
 
 For EACH specialty listed above ({systems_list}), provide that specialist's assessment for each candidate:
-1. stance: support, oppose, or neutral
-2. confidence: 0.0 to 1.0
-3. rationale: concise 1-sentence reasoning from that specialty's vantage point
-4. cited_hpo_codes: HPO codes from the disease annotation set supporting the stance
+1. disease_id: MUST be the exact ID given in parentheses above (e.g., ORPHA:506 or OMIM:256000).
+2. stance: support, oppose, or neutral (differentiate: strongly support diseases explaining hallmark symptoms, oppose or stay neutral on poor fits).
+3. confidence: 0.1 to 1.0 calibrated clinical certainty
+4. rationale: concise 1-sentence reasoning from that specialty's vantage point
+5. cited_hpo_codes: HPO codes from the disease annotation set supporting the stance
 """
 
 
@@ -319,9 +320,10 @@ def specialist_node(state: DiagnosticState) -> dict:
         )
     findings_text = "\n".join(findings_lines)
 
-    # Build candidates text (top 4 for fast high-accuracy analysis)
+    # Build candidates text (top 5 for comprehensive panel evaluation)
+    top_candidates = candidates[:5]
     candidates_lines = []
-    for i, c in enumerate(candidates[:4], 1):
+    for i, c in enumerate(top_candidates, 1):
         genes = ", ".join(c.get("genes", [])) or "no known genes"
         matched = ", ".join(c.get("matched_hpo", []))
         candidates_lines.append(
@@ -354,8 +356,8 @@ def specialist_node(state: DiagnosticState) -> dict:
             "assessments": [a.model_dump() for a in op.assessments],
         })
 
-    # Apply citation guardrails
-    cleaned = validate_citations(opinions_list, annotations)
+    # Apply citation guardrails with candidate lookup for canonical IDs
+    cleaned = validate_citations(opinions_list, annotations, top_candidates)
     logger.info(f"Specialist panel generated opinions across {len(cleaned)} body systems")
     return {"opinions": cleaned}
 
@@ -412,13 +414,15 @@ def reviewer_node(state: DiagnosticState) -> dict:
     findings_text = "\n".join(findings_lines)
 
     # Build assessment summary
+    from app.scoring import matches_disease
     assessment_lines = []
     for candidate in candidates[:5]:
         did = candidate["id"]
-        assessment_lines.append(f"\n--- {candidate['name']} ({did}) | graph_norm: {candidate['graph_norm']} ---")
+        dname = candidate.get("name", "")
+        assessment_lines.append(f"\n--- {dname} ({did}) | graph_norm: {candidate['graph_norm']} ---")
         for opinion in opinions:
             for a in opinion.get("assessments", []):
-                if a.get("disease_id") == did:
+                if matches_disease(a.get("disease_id", ""), did, dname):
                     assessment_lines.append(
                         f"  [{opinion['system']}] {a['stance']} (conf: {a['confidence']}) — {a['rationale']}"
                     )
